@@ -57,16 +57,12 @@ To modify the configuration, create a config.js file in your project, or use env
 
 ```node
 module.exports = {
-  cookieName: 'csrfToken',
-  tokenLength: 64,
   cookieOptions: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production', // Secure cookies in production
     sameSite: 'Strict',
     maxAge: 3600000, // 1 hour
   },
-  regenerateToken: true,
-  tokenExpiration: 3600000, // 1 hour
 };
 ```
 
@@ -80,6 +76,8 @@ CSRF_TOKEN_LENGTH=64
 CSRF_COOKIE_MAXAGE=3600000
 CSRF_REGENERATE_TOKEN=true
 CSRF_TOKEN_EXPIRATION=3600000
+CSRF_CHECK_ORIGIN=false
+CSRF_DEBUG=false
 ```
 
 ### Usage

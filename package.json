@@ -3,43 +3,47 @@
     "version": "1.0.0",
     "main": "index.js",
     "scripts": {
-      "test": "jest"
+        "test": "jest"
     },
     "keywords": [
-      "CSRF protection",
-      "security",
-      "web security",
-      "Node.js",
-      "Express.js",
-      "Cross-Site Request Forgery",
-      "anti-CSRF",
-      "middleware",
-      "token validation",
-      "cookie security",
-      "token regeneration",
-      "HTTP headers",
-      "Express middleware",
-      "security library",
-      "web application security",
-      "server-side security",
-      "security middleware",
-      "Node.js security",
-      "secure request handling",
-      "token generation",
-      "token expiration",
-      "security best practices",
-      "Cross-Site Request Forgery prevention"
+        "CSRF protection",
+        "security",
+        "web security",
+        "Node.js",
+        "Express.js",
+        "Cross-Site Request Forgery",
+        "anti-CSRF",
+        "middleware",
+        "token validation",
+        "cookie security",
+        "token regeneration",
+        "HTTP headers",
+        "Express middleware",
+        "security library",
+        "web application security",
+        "server-side security",
+        "security middleware",
+        "Node.js security",
+        "secure request handling",
+        "token generation",
+        "token expiration",
+        "security best practices",
+        "Cross-Site Request Forgery prevention"
     ],
     "author": "Sam Wilcox",
     "license": "GPL-3.0-only",
     "description": "Secure State is a robust CSRF (Cross-Site Request Forgery) protection library for Node.js, designed to enhance the security of web applications by ensuring that sensitive actions are protected with anti-CSRF tokens. This middleware offers flexible configuration options, including automatic token regeneration, customizable token length, cookie handling, and token expiration. It integrates seamlessly with Express.js, making it easy to safeguard routes that modify server-side state. Secure State helps prevent CSRF attacks by verifying that requests are coming from trusted sources, ensuring a more secure and resilient web application.",
     "devDependencies": {
-      "jest": "^29.7.0",
-      "supertest": "^7.0.0"
+        "jest": "^29.7.0",
+        "supertest": "^7.0.0"
     },
     "dependencies": {
-      "crypto": "^1.0.1",
-      "express": "^4.21.2"
+        "crypto": "^1.0.1",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/nodebysam/securestate"
     }
-  }
-  
+}

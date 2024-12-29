@@ -8,6 +8,7 @@
  * Please see LICENSE file included with this library.
  */
 
+require('dotenv').config();
 const config = require('./config');
 const { csrfMiddleware, verifyCsrf } = require('./middleware/csrf');
 const { generateToken, validateToken } = require('./utils/token');

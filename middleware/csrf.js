@@ -8,9 +8,9 @@
  * Please see LICENSE file included with this library.
  */
 
+const config = require('../config');
 const { generateToken, validateToken } = require('../utils/token');
 const { getCookie, setCookie } = require('../utils/cookies');
-const config = require('../config');
 
 /**
  * Middleware to generate and set a CSRF token in the response cookies.
@@ -27,14 +27,14 @@ const config = require('../config');
  * @param {Object} next - The next middleware in the stack.
  */
 function csrfMiddleware(req, res, next) {
-    let csrfToken = getCookie(req, config.cookieName);
+    let csrfToken = getCookie(req, process.env.CSRF_TOKEN_NAME);
 
     // If token regeneration is enabled, generate a new token for each request.
-    if (config.regenerateToken || !csrfToken) {
-        csrfToken = generateToken(config.tokenLength, req);
-        setCookie(res, config.cookieName, csrfToken, config.cookieOptions);
+    if (process.env.CSRF_REGENERATE_TOKEN === 'true' || !csrfToken) {
+        csrfToken = generateToken(parseInt(process.env.CSRF_TOKEN_LENGTH, 10), req, res);
+        setCookie(res, process.env.CSRF_TOKEN_NAME, csrfToken, config.cookieOptions);
 
-        if (config.debug && process.env.NODE_ENV !== 'test') {
+        if (process.env.CSRF_DEBUG === 'true' && process.env.NODE_ENV !== 'test') {
             console.log(`[DEBUG] CSRF token generated: ${csrfToken}`);
         }
     }
@@ -54,10 +54,10 @@ function csrfMiddleware(req, res, next) {
  */
 function verifyCsrf(req, res, next) {
     const csrfHeaderToken = req.headers['x-csrf-token'];
-    const csrfCookieToken = getCookie(req, config.cookieName);
+    const csrfCookieToken = getCookie(req, process.env.CSRF_TOKEN_NAME);
 
     if (!csrfHeaderToken || !csrfCookieToken) {
-        if (config.debug && process.env.NODE_ENV !== 'test') {
+        if (process.env.CSRF_DEBUG === 'true' && process.env.NODE_ENV !== 'test') {
             console.warn(`[DEBUG] CSRF token missing. Header: ${csrfHeaderToken}, Cookie: ${csrfCookieToken}`);
         }
 
@@ -65,7 +65,7 @@ function verifyCsrf(req, res, next) {
     }
 
     if (!validateToken(csrfHeaderToken, csrfCookieToken, req)) {
-        if (config.debug && process.env.NODE_ENV !== 'test') {
+        if (process.env.CSRF_DEBUG === 'true' && process.env.NODE_ENV !== 'test') {
             config.warn(`[DEBUG] CSRF token mismatch. Header: ${csrfHeaderToken}, Cookie: ${csrfCookieToken}`);
         }
 

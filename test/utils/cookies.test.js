@@ -9,7 +9,6 @@
  */
 
 const { getCookie, setCookie } = require('../../utils/cookies');
-const supertest = require('supertest');
 
 describe('getCookie', () => {
     it('should return the value of the specified cookie', () => {

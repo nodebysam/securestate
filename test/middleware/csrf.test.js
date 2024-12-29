@@ -14,7 +14,14 @@ const superttest = require('supertest');
 const express = require('express');
 const app = express();
 
-app.use(csrfMiddleware);
+app.use((req, res, next) => {
+    try {
+        csrfMiddleware(req, res, next);
+    } catch (err) {
+        console.error('Error is CSRF middleware:', err);
+        res.status(500),send('Internal Server Error');
+    }
+});
 
 app.get('/', (req, res) => {
     res.send('CSRF token set');
@@ -43,15 +50,17 @@ describe('CSRF Middleware', () => {
             .set('Cookie', `csrfToken=deleted; Max-Age=0; Path=${config.cookieOptions.path}; HttpOnly`)
             .end(() => {});
 
-        config.checkOrigin = false;
-        config.debug = false;
-        config.regenerateToken = false;
+        process.env.CSRF_CHECK_ORIGIN = false;
+        process.env.CSRF_DEBUG = false;
+        process.env.CSRF_REGENERATE_TOKEN = false;
     });
 
     it('should set CSRF token in cookies and add to request', async () => {
+        const cookieRegex = new RegExp(process.env.CSRF_TOKEN_NAME);
+
         const res = await superttest(app)
             .get('/')
-            .expect('Set-Cookie', /csrfToken/);
+            .expect('Set-Cookie', cookieRegex);
 
         expect(res.headers['set-cookie'][0]).toContain('csrfToken');
     });
@@ -69,56 +78,86 @@ describe('CSRF Middleware', () => {
     });
 
     it('should return 403 if CSRF token is invalid', async () => {
+        const tokenRegex = new RegExp(`${process.env.CSRF_TOKEN_NAME}=([^;]+);`);
+        const cookieRegex = new RegExp(process.env.CSRF_TOKEN_NAME);
+
         const res = await superttest(app)
             .get('/')
-            .expect('Set-Cookie', /csrfToken/);
+            .expect('Set-Cookie', cookieRegex);
 
-        csrfCookieToken = res.headers['set-cookie'][0].match(/csrfToken=(\S+);/)[1];
-        if (!csrfCookieToken) return done(new Error('CSRF token not found in cookie'));
+            const cookieHeader = res.headers['set-cookie'][0];
+            const match = cookieHeader.match(tokenRegex);
+    
+            expect(match).not.toBeNull();
+            expect(match[1]).toBeDefined();
+    
+            const csrfCookieToken = match[1];
 
         await superttest(app)
             .post('/sensitive-action')
             .set('x-csrf-token', 'invalid-token')
-            .set('cookie', `csrfToken=${csrfCookieToken}`)
+            .set('cookie', `${process.env.CSRF_TOKEN_NAME}=${csrfCookieToken}`)
             .expect(403)
             .expect({ error: 'CSRF token mismatch.' });
     });
 
     it('should allow request with valid CSRF token', async () => {
+        const tokenRegex = new RegExp(`${process.env.CSRF_TOKEN_NAME}=([^;]+);`);
+        const cookieRegex = new RegExp(process.env.CSRF_TOKEN_NAME);
+
         const res = await superttest(app)
             .get('/')
-            .expect('Set-Cookie', /csrfToken/);
+            .expect('Set-Cookie', cookieRegex);
+            
+        const cookieHeader = res.headers['set-cookie'][0];
+        const match = cookieHeader.match(tokenRegex);
 
-        csrfCookieToken = res.headers['set-cookie'][0].match(/csrfToken=(\S+);/)[1];
-        if (!csrfCookieToken) return done(new Error('CSRF token not found in cookie'));
+        expect(match).not.toBeNull();
+        expect(match[1]).toBeDefined();
+
+        const csrfCookieToken = match[1];
 
         await superttest(app)
                 .post('/sensitive-action')
                 .set('x-csrf-token', csrfCookieToken)
-                .set('cookie', `csrfToken=${csrfCookieToken}`)
+                .set('cookie', `${process.env.CSRF_TOKEN_NAME}=${csrfCookieToken}`)
                 .expect(200, 'Action performed successfully');
     });
 
     it('should regenerate token if regenerateToken is true', async () => {
-        config.regenerateToken = true;
+        const tokenRegex = new RegExp(`${process.env.CSRF_TOKEN_NAME}=([^;]+);`);
+        const cookieRegex = new RegExp(process.env.CSRF_TOKEN_NAME);
+        process.env.CSRF_REGENERATE_TOKEN = true;
 
         const res1 = await superttest(app)
             .get('/')
-            .expect('Set-Cookie', /csrfToken/);
+            .expect('Set-Cookie', cookieRegex);
 
-            const token1 = res1.headers['set-cookie'][0].match(/csrfToken=(\S+)/)[1];
+        const cookieHeader1 = res1.headers['set-cookie'][0];
+        const match1 = cookieHeader1.match(tokenRegex);
 
-            const res2 = await superttest(app)
-                .get('/')
-                .expect('Set-Cookie', /csrfToken/);
+        expect(match1).not.toBeNull();
+        expect(match1[1]).toBeDefined();
 
-                const token2 = res2.headers['set-cookie'][0].match(/csrfToken=(\S+)/)[1];
+        const token1 = match1[1];
 
-            expect(token1).not.toBe(token2);
+        const res2 = await superttest(app)
+            .get('/')
+            .expect('Set-Cookie', cookieRegex);
+
+        const cookieHeader2 = res2.headers['set-cookie'][0];
+        const match2 = cookieHeader2.match(tokenRegex);
+
+        expect(match2).not.toBeNull();
+        expect(match2[1]).toBeDefined();
+
+        const token2 = match2[1];
+
+        expect(token1).not.toBe(token2);
     });
 
     it('Should log debug messages if debug mode is enabled', async () => {
-        config.debug = true
+        process.env.CSRF_DEBUG = true
         process.env.NODE_ENV = 'production';
         const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 

@@ -8,8 +8,12 @@
  * Please see LICENSE file included with this library.
  */
 
-const crypto = require('crypto');
+require('dotenv').config();
 const config = require('../config');
+const crypto = require('crypto');
+const DataStore = require('./datastore');
+const { setCookie } = require('./cookies');
+const mockRes = require('./mockres');
 
 /**
  * Generate a new CSRF token string.
@@ -18,30 +22,34 @@ const config = require('../config');
  * @param {Object} req - The HTTP request object.
  * @returns {string} The generated CSRF string token. 
  */
-function generateToken(length = config.tokenLength, req) {
+function generateToken(length = parseInt(process.env.CSRF_TOKEN_LENGTH, 10), req) {
+    const res = mockRes();
+    length = parseInt(length, 10);
     let baseToken = crypto.randomBytes(length).toString('hex');
 
-    if (config.checkOrigin && req && req.ip && req.headers && req.headers['user-agent']) {
-        const originData = `${req.ip}:${req.headers['user-agent']}`;
-        const originHash = crypto
-            .createHash('sha256')
-            .update(originData)
-            .digest('hex');
+    let token = baseToken;
 
-        if (config.tokenExpiration !== null) {
-            const timestampHash = getTokenExpirationHash();
-            return `${baseToken}:${originHash}:${timestampHash}`;
+    if (process.env.CSRF_CHECK_ORIGIN === 'true' && req && req.ip && req.headers && req.headers['user-agent']) {
+        const originData = `${req.ip}:${req.headers['user-agent']}`;
+        const originHash = crypto.createHash('sha256').update(originData).digest('hex');
+        
+        if (process.env.CSRF_TOKEN_EXPIRATION === null) {
+            token = `${baseToken}:${originHash}`;
         } else {
-            return `${baseToken}:${originHash}`;
+            const expirationTime = Date.now() + parseInt(process.env.CSRF_TOKEN_EXPIRATION, 10) * 1000;
+            const expirationHash = crypto.createHash('sha256').update(expirationTime.toString()).digest('hex');
+            token = `${baseToken}:${originHash}:${expirationHash}`;
         }
     }
 
-    if (config.tokenExpiration !== null) {
-        const timestampHash = getTokenExpirationHash();
-        return `${baseToken}${timestampHash}`;
-    }
+    setCookie(res, process.env.CSRF_TOKEN_NAME, token, {
+        httpOnly: config.cookieOptions.httpOnly,
+        sameSite: config.cookieOptions.sameSite,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: parseInt(process.env.CSRF_COOKIE_MAXAGE, 10),
+    });
 
-    return baseToken;
+    return token;
 }
 
 /**
@@ -53,8 +61,8 @@ function generateToken(length = config.tokenLength, req) {
  * @returns {boolean} True if token validation is successful, false if the token validation fails.
  */
 function validateToken(receivedToken, storedToken, req = null) {
-    if (config.tokenExpiration === null) {
-        if (config.checkOrigin) {
+    if (process.env.CSRF_TOKEN_EXPIRATION === null) {
+        if (process.env.CSRF_CHECK_ORIGIN === 'true') {
             const [token, originHash] = storedToken.split(':');
             
             if (originHash) {
@@ -66,7 +74,7 @@ function validateToken(receivedToken, storedToken, req = null) {
             return receivedToken === storedToken;
         }
     } else {
-        if (config.checkOrigin) {
+        if (process.env.CSRF_CHECK_ORIGIN === 'true') {
             const [token, originHash, timestampHash] = storedToken.split(':');
             
             if (originHash) {
@@ -97,15 +105,13 @@ function validateToken(receivedToken, storedToken, req = null) {
 /**
  * Helper that gets the token expiration hash.
  * 
+ * @param {string} token - The generated token. 
  * @returns {string} Expiration token hash.
  */
-function getTokenExpirationHash() {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const timestampHash = crypto
-        .createHash('sha256')
-        .update(timestamp)
-        .digest('hex');
-
+function getTokenExpirationHash(token) {
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    DataStore.set('timestamp', { refToken: token, refTimestamp: timestamp });
+    const timestampHash = calculateHash(timestamp);
     return timestampHash;
 }
 
@@ -120,10 +126,7 @@ function validateOriginHash(req, hash) {
     const ip = req.ip || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'] || '';
     const originData = `${ip}${userAgent}`;
-    const calculatedHash = crypto
-        .createHash('sha256')
-        .update(originData)
-        .digest('hex');
+    const calculatedHash = calculateHash(originData);
 
     if (calculatedHash !== hash) {
         return false;
@@ -136,34 +139,45 @@ function validateOriginHash(req, hash) {
  * Validate the timestamp hash string.
  * 
  * @param {string} token - The token.
- * @param {string} storedToken - The token that was previously stored.
+ * @returns {boolean} True if valid, false if not valid.
  */
-function validateTimestampHash(token, storedToken) {
-    const [tokenValue, tokenTimestamp ] = token.split(':');
-    let refValue;
-    let refTimestamp;
-    
-    if (config.checkOrigin && config.tokenExpiration !== null) {
-        const [rValue, rOrigin, rTimestamp] = storedToken.split(':');
-        refValue = rValue;
-        refTimestamp = rTimestamp;
-    } else if (!config.checkOrigin && config.tokenExpiration !== null) {
-        const [rValue, rTimestamp] = storedToken.split(':');
-        refValue = rValue;
-        refTimestamp = rTimestamp;
+function validateTimestampHash(token) {
+    let originalToken;
+
+    if (process.env.CSRF_CHECK_ORIGIN === 'true') {
+        const [rToken, rOrigin, rTimestamp] = token.split(':');
+        originalToken = rToken;
+    } else {
+        const [rToken, rTimestamp] = token.split(':');
+        originalToken = rToken;
     }
 
     const currentTime = Math.floor(Date.now() / 1000);
+    const storedTimestamp = DataStore.get('timestamp');
+    const { refToken, refTimestamp } = storedTimestamp;
 
-    if (
-        tokenValue !== refValue ||
-        isNaN(tokenTimestamp) ||
-        currentTime - parseInt(tokenTimestamp, 10) > config.tokenExpiration
-    ) {
+    if (originalToken !== refToken) {
+        return false;
+    }
+
+    if (currentTime - parseInt(refTimestamp, 10) > parseInt(process.env.CSRF_TOKEN_EXPIRATION, 10)) {
         return false;
     }
 
     return true;
+}
+
+/**
+ * Helper that calculates a hash for given data.
+ * 
+ * @param {string} data - The data to pass into the hash.
+ * @returns {string} The calculated hash. 
+ */
+function calculateHash(data) {
+    return crypto
+        .createHash('sha256')
+        .update(data)
+        .digest('hex');
 }
 
 module.exports = { generateToken, validateToken };

@@ -22,24 +22,24 @@ const mockReq = (ip = '127.0.0.1', userAgent = 'Mozilla/5.0') => ({
 
 describe('Token Utility Functions', () => {
     afterEach(() => {
-        config.checkOrigin = false;
-        config.regenerateToken = false;
-        config.tokenExpiration = null;
-        config.debug = false;
+        process.env.CSRF_CHECK_ORIGIN = false;
+        process.env.CSRF_REGENERATE_TOKEN = false;
+        process.env.CSRF_TOKEN_EXPIRATION = null;
+        process.env.CSRF_DEBUG = false;
     });
 
     it('should generate a token with default length', () => {
-        const token = generateToken();
+        const token = generateToken().split(':')[0];
         expect(token).toHaveLength(64); // 32 bytes -> 64 hex characters
     });
 
     it('should generate a token with a custom length', () => {
-        const token = generateToken(64);
+        const token = generateToken(64).split(':')[0];
         expect(token).toHaveLength(128); // 64 bytes -> 128 hex characters
     });
 
     it('should include IP and User-Agent in token when checkOrigin is enabled', () => {
-        config.checkOrigin = true;
+        process.env.CSRF_CHECK_ORIGIN = true;
         const req = mockReq('198.168.1.1', 'CustomUserAgent/1.0');
         const token = generateToken(32, req);
 
@@ -48,7 +48,7 @@ describe('Token Utility Functions', () => {
         let originHash;
         let timestamp;
 
-        if (config.tokenExpiration !== null) {
+        if (process.env.CSRF_TOKEN_EXPIRATION !== null) {
             const [bToken, oHash, tExpiration] = token.split(':');
             baseToken = bToken;
             originHash = oHash;
@@ -62,7 +62,7 @@ describe('Token Utility Functions', () => {
         expect(originHash).toBeDefined();
         expect(baseToken).toHaveLength(64);
 
-        if (config.tokenExpiration !== null) {
+        if (process.env.CSRF_TOKEN_EXPIRATION !== null) {
             expect(timestamp).toBeDefined();
         } 
     });
@@ -83,7 +83,7 @@ describe('Token Utility Functions', () => {
     });
 
     it('should validate token without origin check if checkOrigin is false', () => {
-        config.checkOrigin = false;
+        process.env.CSRF_CHECK_ORIGIN = false;
         const token = generateToken();
         const isValid = validateToken(token, token);
         expect(isValid).toBe(true);
