@@ -8,6 +8,9 @@
  * Please see LICENSE file included with this library.
  */
 
+const { cookieOptions } = require("../config");
+const mockRes = require('./mockres');
+
 /**
  * Extracts the value of a specific cookie from the request headers.
  * 
@@ -47,9 +50,14 @@ function getCookie(req, name) {
  * @param {string} [options.sameSite] - The same site string.
  * @param {boolean} [options.secure] - True for secure cookies, false for non-secure cookies.
  * @param {string} [options.path] - The cookie path (e.g., '/').
- * @param {string} [options.domain] - The cookie domain (e.g., 'example.com').
+ * @param {string} [options.domain] - The cookie domain (e.g., 'example.com').\
+ * @param {Date|string} [options.expires] - A specific expiration date for the cookie (e.g., '2024-12-31').
  */
 function setCookie(res, name, value, options = {}) {
+    if (process.env.NODE_ENV === 'test') {
+        res = mockRes();
+    }
+
     let cookie = `${name}=${encodeURIComponent(value)}`;
     if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
     if (options.httpOnly) cookie += `; HttpOnly`;
@@ -61,7 +69,18 @@ function setCookie(res, name, value, options = {}) {
         cookie += `; Secure`;
     }
 
-    res.setHeader('Set-Cookie', cookie);
+    if (process.env.NODE_ENV === 'test') {
+        res.setHeader('Set-Cookie', cookie);
+    } else {
+        res.cookie(name, value, {
+            httpOnly: cookieOptions.httpOnly,
+            secure: cookieOptions.secure,
+            sameSite: cookieOptions.sameSite,
+            maxAge: parseInt(process.env.CSRF_TOKEN_MAXAGE),
+            path: cookieOptions.path,
+            domain: cookieOptions.domain,
+        });
+    }
 }
 
 module.exports = { getCookie, setCookie };

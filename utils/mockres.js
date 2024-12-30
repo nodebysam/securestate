@@ -8,6 +8,8 @@
  * Please see LICENSE file included with this library.
  */
 
+const jest = require('jest');
+
 /**
  * Mocks the HTTP response object for testing purposes.
  */

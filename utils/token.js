@@ -13,7 +13,6 @@ const config = require('../config');
 const crypto = require('crypto');
 const DataStore = require('./datastore');
 const { setCookie } = require('./cookies');
-const mockRes = require('./mockres');
 
 /**
  * Generate a new CSRF token string.
@@ -22,8 +21,7 @@ const mockRes = require('./mockres');
  * @param {Object} req - The HTTP request object.
  * @returns {string} The generated CSRF string token. 
  */
-function generateToken(length = parseInt(process.env.CSRF_TOKEN_LENGTH, 10), req) {
-    const res = mockRes();
+function generateToken(length = parseInt(process.env.CSRF_TOKEN_LENGTH, 10), req, res) {
     length = parseInt(length, 10);
     let baseToken = crypto.randomBytes(length).toString('hex');
 
@@ -100,19 +98,6 @@ function validateToken(receivedToken, storedToken, req = null) {
             return receivedToken === storedToken;
         }
     }
-}
-
-/**
- * Helper that gets the token expiration hash.
- * 
- * @param {string} token - The generated token. 
- * @returns {string} Expiration token hash.
- */
-function getTokenExpirationHash(token) {
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    DataStore.set('timestamp', { refToken: token, refTimestamp: timestamp });
-    const timestampHash = calculateHash(timestamp);
-    return timestampHash;
 }
 
 /**

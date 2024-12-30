@@ -41,6 +41,11 @@ app.post('/sensitive-action', verifyCsrf, (req, res) => {
 describe('CSRF Middleware', () => {
     let csrfCookieToken;
 
+    // Executed before each test execution
+    beforeEach(() => {
+        process.env.NODE_ENV = 'test';
+    });
+
     // Cleanup after each test execution
     afterEach(() => {
         csrfCookieToken = null;
@@ -53,16 +58,21 @@ describe('CSRF Middleware', () => {
         process.env.CSRF_CHECK_ORIGIN = false;
         process.env.CSRF_DEBUG = false;
         process.env.CSRF_REGENERATE_TOKEN = false;
+        process.env.CSRF_TOKEN_EXPIRATION = null;
     });
 
     it('should set CSRF token in cookies and add to request', async () => {
         const cookieRegex = new RegExp(process.env.CSRF_TOKEN_NAME);
+        const csrfCookieRegex = new RegExp(`${process.env.CSRF_TOKEN_NAME}=([^;]+)`);
 
         const res = await superttest(app)
             .get('/')
             .expect('Set-Cookie', cookieRegex);
 
-        expect(res.headers['set-cookie'][0]).toContain('csrfToken');
+        expect(res.headers['set-cookie'][0]).toContain(process.env.CSRF_TOKEN_NAME);
+        csrfCookieToken = res.headers['set-cookie'][0].match(csrfCookieRegex)[1];
+
+        expect(csrfCookieToken).toBeDefined();
     });
 
     it('should bypass CSRF verification checks', async () => {
