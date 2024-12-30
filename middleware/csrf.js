@@ -1,5 +1,5 @@
 /**
- * Secure State
+ * SECURE STATE
  * A robust CSRF security protection node library.
  * 
  * By Sam Wilcox <wilcox.sam@gmail.com>
@@ -9,64 +9,63 @@
  */
 
 const config = require('../config');
-const { generateToken, validateToken } = require('../utils/token');
-const { getCookie, setCookie } = require('../utils/cookies');
+const { generateToken, validateToken } = require('../lib/token');
+const { getCookie, setCookie } = require('../lib/cookies');
 
 /**
  * Middleware to generate and set a CSRF token in the response cookies.
- * If it doesn't already exist. Adds the token to the req.csrfToken' property.
+ * If it doesn't already exist. Adds the token to the req._csrfToken property.
  * 
- * - If 'config.regenerateToken' is true, generates a new token for every request.
+ * - If 'config.regenerateToken' is true, generates a new token every request.
  * - If no token is found in the cookies, generates a new token.
  * 
  * This middleware should be used on all routes that require CSRF protection (e.g., POST,
  * PUT, DELETE, or any method that alters server-side state).
  * 
  * @param {Object} req - The HTTP request object.
- * @param {Object} res - The HTTP response object.
- * @param {Object} next - The next middleware in the stack.
+ * @param {Object} res  - The HTTP response object.
+ * @param {Object} next - The next middleware to execute.
  */
-function csrfMiddleware(req, res, next) {
-    let csrfToken = getCookie(req, process.env.CSRF_TOKEN_NAME);
+function secureStateMiddleware(req, res, next) {
+    let token = getCookie(req, config.cookieOptions.cookieName);
 
-    // If token regeneration is enabled, generate a new token for each request.
-    if (process.env.CSRF_REGENERATE_TOKEN === 'true' || !csrfToken) {
-        csrfToken = generateToken(parseInt(process.env.CSRF_TOKEN_LENGTH, 10), req, res);
-        setCookie(res, process.env.CSRF_TOKEN_NAME, csrfToken, config.cookieOptions);
+    if (config.regenerateToken || !token) {
+        token = generateToken(req, res, config.tokenLength);
+        setCookie(res, config.cookieOptions.cookieName, token);
 
-        if (process.env.CSRF_DEBUG === 'true' && process.env.NODE_ENV !== 'test') {
-            console.log(`[DEBUG] CSRF token generated: ${csrfToken}`);
+        if (config.debug && process.env.NODE_ENV !== 'test') {
+            console.log(`[SECURESTATE DEBUG] CSRF token generated: ${token}`);
         }
     }
 
-    req.csrfToken = csrfToken;
+    req._csrfToken = token;
     next();
 }
 
 /**
- * Middleware to verify that the CSRF token sent by the client matches the one
+ * Middleware to verify the CSRF token sent by the client matches the one
  * stored in the server-side cookie. This protects against CSRF attacks.
  * The incoming token should be in the 'x-csrf-token' header.
  * 
  * @param {Object} req - The HTTP request object.
- * @param {Object} res - The HTTP response object.
- * @param {Object} next - The next middleware in the stack.
+ * @param {Object} res  - The HTTP response object.
+ * @param {Object} next - The next middleware to execute.
  */
 function verifyCsrf(req, res, next) {
-    const csrfHeaderToken = req.headers['x-csrf-token'];
-    const csrfCookieToken = getCookie(req, process.env.CSRF_TOKEN_NAME);
+    const headerToken = req.headers['x-csrf-token'];
+    const cookieToken = getCookie(req, config.cookieOptions.cookieName);
 
-    if (!csrfHeaderToken || !csrfCookieToken) {
-        if (process.env.CSRF_DEBUG === 'true' && process.env.NODE_ENV !== 'test') {
-            console.warn(`[DEBUG] CSRF token missing. Header: ${csrfHeaderToken}, Cookie: ${csrfCookieToken}`);
+    if (!headerToken || !cookieToken) {
+        if (config.debug && process.env.NODE_ENV !== 'test') {
+            console.warn(`[SECURESTATE DEBUG] CSRF token missing. Header: ${headerToken}, Cookie: ${cookieToken}`);
         }
 
         return res.status(403).json({ error: 'CSRF token missing.' });
     }
 
-    if (!validateToken(csrfHeaderToken, csrfCookieToken, req)) {
-        if (process.env.CSRF_DEBUG === 'true' && process.env.NODE_ENV !== 'test') {
-            config.warn(`[DEBUG] CSRF token mismatch. Header: ${csrfHeaderToken}, Cookie: ${csrfCookieToken}`);
+    if (!validateToken(headerToken, cookieToken, req)) {
+        if (config.debug && process.env.NODE_ENV !== 'test') {
+            console.warn(`[SECURESTATE DEBUG] CSRF token mismatch. Header" ${headerToken}, Cookie: ${cookieToken}`);
         }
 
         return res.status(403).json({ error: 'CSRF token mismatch.' });
@@ -75,4 +74,4 @@ function verifyCsrf(req, res, next) {
     next();
 }
 
-module.exports = { csrfMiddleware, verifyCsrf };
+module.exports = { secureStateMiddleware, verifyCsrf };

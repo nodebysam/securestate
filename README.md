@@ -1,172 +1,131 @@
-# Secure State
+# Secure State - CSRF Protection Library
 
-**Secure State** is a robust and easy-to-use CSRF (Cross-Site Request Forgery) protection library for Node.js, built on top of Express.js. It provides developers with the ability to secure their web applications against CSRF attacks by generating, validating, and managing CSRF tokens. 
-
-With the ability to support token expiration and regeneration, Secure State ensures that your application's security is kept up-to-date and resistant to various attack vectors.
+**Secure State** is a robust Node.js library designed to provide protection against Cross-Site Request Forgery (CSRF) attacks. It helps developers add CSRF security to their web applications easily by generating, validating, and managing CSRF tokens with built-in middleware.
 
 ## Features
+- **Generate and validate CSRF tokens**: Ensures safe requests by verifying tokens.
+- **Cookie-based token storage**: Tokens are stored in secure cookies to prevent unauthorized access.
+- **Origin and expiration checks**: Configurable to check the origin of requests and token expiration.
+- **Debugging support**: Provides detailed debug information (disabled in production).
 
-- **CSRF Token Generation**: Automatically generates CSRF tokens on requests and stores them in cookies.
-- **Token Validation**: Verifies the CSRF token on each request to ensure it matches the token stored in the cookies.
-- **Token Expiration**: Tokens can be configured to expire after a set period, further enhancing security.
-- **Token Regeneration**: Option to regenerate tokens on each request to minimize risk.
-- **Configurable Options**: Easily configurable through environment variables or configuration files.
+## Table of Contents
+1. [Installation](#installation)
+2. [Usage](#usage)
+   - [Middleware](#middleware)
+   - [CSRF Token Handling](#csrf-token-handling)
+3. [Configuration](#configuration)
+4. [API Documentation](#api-documentation)
+5. [License](#license)
 
 ## Installation
 
-### 1. Install Secure State
-
-You can install Secure State via npm:
+Install Secure State via npm:
 
 ```bash
-npm install securestate
+npm install secure-state
 ```
 
-### 2. Include Secure State in Your Application
-
-In your Express app, include the CSRF protection middleware.
+# Usage
+## Middleware
+1. __secureStateMiddleware:__ This middleware generates and sets a CSRF token if not already set in the cookies. It should be used in routes where CSRF protection is needed.
 
 ```node
-const express = require('express');
-const { csrfMiddleware, verifyCsrf } = require('securestate');
+const { secureStateMiddleware } = require('secure-state');
 
-const app = express();
+// Use this middleware on routes that require CSRF protection
+app.use(secureStateMiddleware);
+```
 
-// Set up the CSRF middleware to protect routes
-app.use(csrfMiddleware);
+2. __verifyCsrf:__ This middleware verifies that the CSRF token in the request matches the token stored in the cookies. It should be applied to routes that modify server-side state (e.g., POST, PUT, DELETE).
 
-// Define routes that require CSRF protection
-app.post('/sensitive-action', verifyCsrf, (req, res) => {
-  res.send('Action performed successfully');
+```node
+const { verifyCsrf } = require('secure-state');
+
+// Use this middleware to verify CSRF tokens before handling sensitive actions
+app.use('/sensitive-route', verifyCsrf, (req, res) => {
+    // Handle the request if CSRF is valid
+    res.send('CSRF verified!');
 });
 ```
 
-### Configuration
-
-You can customize Secure State's behavior by modifying the configuration options. Configuration is handled via the config object.
-
-Here are some key configuration options you can use:
-
-* __cookieName:__ Name of the cookie where the CSRF token will be stored. Default is 'csrfToken'.
-* __tokenLength:__ The length of the CSRF token. Default is 64.
-* __cookieOptions:__ Options for cookie storage, such as __httpOnly__, __secure__, __sameSite__, and __maxAge__.
-* __regenerateToken:__ Boolean option to regenerate the CSRF token on every request. Default is false.
-* __tokenExpiration:__ Expiration time for the CSRF token in milliseconds. If __null__, tokens do not expire. Default is __null__.
-
-To modify the configuration, create a config.js file in your project, or use environment variables:
+## CSRF Token Handling
+* __Generating a token:__ Use __generateToken__ to manually generate a CSRF token.
 
 ```node
-module.exports = {
-  cookieOptions: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // Secure cookies in production
-    sameSite: 'Strict',
-    maxAge: 3600000, // 1 hour
-  },
+const { generateToken } = require('secure-state');
+
+const token = generateToken(req, res);
+console.log(token);  // The CSRF token generated
+```
+
+* __Validating a Token:__ Use __validateToken__ to check if the incoming token is valid.
+
+```node
+const { validateToken } = require('secure-state');
+
+const isValid = validateToken(incomingToken, storedToken);
+console.log(isValid);  // Returns true if valid, false if invalid
+```
+
+## Configuration
+The __Secure State__ library is highly configurable via the __config__ file.
+
+## Available Options:
+
+```javascript
+const config = {
+    regenerateToken: false,        // Whether to regenerate token on every request
+    tokenExpires: false,           // Whether the token should expire
+    tokenExpiration: 0,            // Token expiration time in seconds (0 = no expiration)
+    checkOrigin: false,            // Whether to check the origin of requests
+    debug: false,                  // Enable debug logs (not recommended for production)
+    tokenLength: 32,               // Length of the generated token
+    cookieOptions: {
+        cookieName: '_csrfToken',       // Cookie name to store the CSRF token
+        httpOnly: true,            // Prevent access via JavaScript
+        sameSite: 'Strict',        // Restrict cross-site cookie sharing
+        secure: process.env.NODE_ENV === 'production',  // Secure cookies in production
+        path: '/',                 // Cookie path (root of site)
+        domain: '',                // Cookie domain
+    }
 };
 ```
 
-### Using Environment Variables
+## Example:
+You can modify the __config.js__ file to adjust the CSRF protection according to your needs, such as enabling token expiration or debugging mode.
 
-You can slo use environment variables to configure Secure State:
+# API Documentation
+### __generateToken(req, res, length)__
+* Generates a new CSRF token and stores it in the response cookie.
+* __Paramaters:__
+    * __req:__ The HTTP request object.
+    * __res:__ The HTTP response object.
+    * __length:__ Length of the token. Default is 32.
+* __Returns:__ The generated CSRF token string.
 
-```env
-CSRF_TOKEN_NAME=csrfToken
-CSRF_TOKEN_LENGTH=64
-CSRF_COOKIE_MAXAGE=3600000
-CSRF_REGENERATE_TOKEN=true
-CSRF_TOKEN_EXPIRATION=3600000
-CSRF_CHECK_ORIGIN=false
-CSRF_DEBUG=false
-```
+### __validateToken(incomingToken, storedToken, req)__
+* Validates the CSRF token sent by the client.
+* __Parameters:__
+    * __incomingToken:__ The token received in the request (usually in the __x-csrf-token__ header).
+    * __storedToken:__ The token stored in the cookie.
+    * __req:__ The HTTP response object (optional).
+* __Returns:__ __true__ if the token is valid, __false__ otherwise.
 
-### Usage
+### __secureStateMiddleware(req, res, next)__
+* Middleware that generates and sets a CSRF token for incoming requests.
+* __Parameters:__
+    * __req:__ The HTTP request object.
+    * __res:__ The HTTP response object.
+    * __next:__ The next middleware function.
 
-Once you've set up Secure State and configured it, you're ready to use it in your application. Here's how to handle CSRF protection:
+### __verifyCsrf(req, res, next)__
+* Middleware to verify the CSRF token sent by the client.
+* __Parameters:__
+    * __req:__ The HTTP request object.
+    * __res:__ The HTTP response object.
+    * __next:__ The next middleware function.
 
-1. __Generate the CSRF token:__ The __csrfMiddleware__ will automatically generate a CSRF token on each request.
-2. __Send the CSRF token:__ The token will be set in the response cookies.
-3. __Verify the CSRF token:__ On subsequent requests, you must send the CSRF token in the __x-csrf-token__ header. The __verifyCsrf__ middleware will validate the token against the one stored in the cookie.
+# License
+This library is licensed under the __GPL v3.0__ license. See the [LICENSE](./LICENSE) file for more details.
 
-### Example of a Full Flow
-
-```node
-const express = require('express');
-const { csrfMiddleware, verifyCsrf } = require('securestate');
-
-const app = express();
-
-// Middleware to enable CSRF protection
-app.use(csrfMiddleware);
-
-// Route to perform a sensitive action
-app.post('/sensitive-action', verifyCsrf, (req, res) => {
-  res.send('Action performed successfully');
-});
-
-// Example route to get CSRF token and send it in the response
-app.get('/csrf-token', (req, res) => {
-  res.json({ csrfToken: req.csrfToken });
-});
-
-// Start the app
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
-```
-
-### Handling Missing or Mistmatched CSRF Tokens
-
-If the CSRF token is missing or doesn't match, the __verifyCsrf__ middleware will send a __403 Forbidden__ response:
-
-```json
-{
-  "error": "CSRF token missing."
-}
-```
-
-or
-
-```json
-{
-  "error": "CSRF token mismatch."
-}
-```
-
-### Debugging
-
-To enable debugging, set the __debug__ flag in the configuration:
-
-```node
-module.exports = {
-  debug: true,
-};
-```
-
-This will log useful information about token generation and validation to the console.
-
-### Token Expiration
-
-You can set tokens to expire after a certain time. This helps to further protect against misuse of old CSRF tokens. Set the expiration time in the configuration:
-
-```node
-module.exports = {
-  tokenExpiration: 3600000, // Token expires after 1 hour
-};
-```
-
-### License
-
-Secure State is licensed under the __GPL-3.0-Only__ license. See [LICENSE](./LICENSE) file for more information.
-
-### Contributing
-
-Contributions are welcome! Please fork the repository, make your changes, and submit a pull request. If you're planning to make a significant change, please open an issue first to discuss your ideas.
-
-### Authors
-
-* __Sam Wilcox:__ Initial development and maintenance
-
-### Thank You
-
-Thank you for using Secure State. We hope it provides the security you need for your web applications!
+__Created By:__ Sam Wilcox [wilcox.sam@gmail.com](mailto:wilcox.sam@gmail.com)

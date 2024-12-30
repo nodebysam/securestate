@@ -1,5 +1,5 @@
 /**
- * Secure State
+ * SECURE STATE
  * A robust CSRF security protection node library.
  * 
  * By Sam Wilcox <wilcox.sam@gmail.com>
@@ -8,30 +8,29 @@
  * Please see LICENSE file included with this library.
  */
 
-require('dotenv').config();
 const config = require('./config');
-const { csrfMiddleware, verifyCsrf } = require('./middleware/csrf');
-const { generateToken, validateToken } = require('./utils/token');
-const { getCookie, setCookie } = require('./utils/cookies');
+const { secureStateMiddleware, verifyCsrf } = require('./middleware/csrf');
+const { generateToken, validateToken } = require('./lib/token');
+const { getCookie, setCookie } = require('./lib/cookies');
 
 /**
- * Export all neccessary components of Secure State.
+ * Export all the neccessary components of Secure State.
  */
 module.exports = {
-    // CSRF middleware to set the token for the user
-    csrfMiddleware,
+    // Middleware that sets the token.
+    secureStateMiddleware,
 
-    // CSRF middleware to verify the token for sensitive actions
+    // Middleware that verifies token for sensitive actions.
     verifyCsrf,
 
-    // Token utility functions
+    // Token library functions.
     generateToken,
     validateToken,
 
-    // Cookie utility functions
+    // Cookie library functions.
     getCookie,
     setCookie,
 
-    // Secure State user configurations object
+    // Secure State user configurations object.
     config,
 };

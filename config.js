@@ -1,5 +1,5 @@
 /**
- * Secure State
+ * SECURE STATE
  * A robust CSRF security protection node library.
  * 
  * By Sam Wilcox <wilcox.sam@gmail.com>
@@ -12,26 +12,44 @@
  * Secure State library configurations.
  */
 const config = {
-    // Options to set when the CSRF token cookie is created
+    // Whether to regenerate the CSRF token on each request.
+    regenerateToken: false,
+
+    // Whether the token will expire after a set period of time.
+    tokenExpires: false,
+
+    // The expiration time for the the token in seconds.
+    tokenExpiration: 0,
+
+    // Whether to check the origin of the token.
+    checkOrigin: false,
+
+    // Debug mode for detailed debug information; not recommended for production.
+    debug: false,
+
+    // The length of the token.
+    tokenLength: 32,
+
+    // Options to set when the CSRF token cookie is created.
     cookieOptions: {
-        // Ensures the cookie can't be accessed via JavaScript (helps prevent XSS attacks)
+        // The name of the cookie to store the CSRF token in.
+        cookieName: '_csrfToken',
+
+        // Ensures the cookie cannot be accessed via JavaScript (helps prevent XSS attacks).
         httpOnly: true,
 
-        // Prevents the cookie from being sent with cross-site requests (protects against CSRF)
+        // Prevents the cookie from being sent with cross-site requests (protects against CSRF).
         sameSite: 'Strict',
 
-        // Ensures the cookie is only sent over HTTPS in a production environments
+        // Ensures the cookie is only sent over HTTPS in a production environment.
         secure: process.env.NODE_ENV === 'production',
 
-        // The path where the cookie is available (root of the site in this case)
+        // The path where the cookie is available (root of site use '/').
         path: '/',
 
-        // The domain where the cookie is available
+        // The domain where the cookie is available.
         domain: '',
     },
-
-    // Option to enable debug mode - be sure to turn off during production
-    debug: false,
 };
 
 module.exports = config;
