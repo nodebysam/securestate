@@ -9,7 +9,6 @@
  */
 
 const { cookieOptions } = require("../config");
-const mockRes = require('./mockres');
 
 /**
  * Extracts the value of a specific cookie from the request headers.
@@ -54,10 +53,6 @@ function getCookie(req, name) {
  * @param {Date|string} [options.expires] - A specific expiration date for the cookie (e.g., '2024-12-31').
  */
 function setCookie(res, name, value, options = {}) {
-    if (process.env.NODE_ENV === 'test') {
-        res = mockRes();
-    }
-
     let cookie = `${name}=${encodeURIComponent(value)}`;
     if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
     if (options.httpOnly) cookie += `; HttpOnly`;
