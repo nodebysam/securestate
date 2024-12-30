@@ -1,11 +1,15 @@
 {
-    "name": "securestate",
-    "version": "1.0.4",
-    "main": "index.js",
-    "scripts": {
-        "test": "jest"
-    },
-    "keywords": [
+  "name": "securestate",
+  "version": "1.0.4",
+  "main": "index.js",
+  "scripts": {
+    "test": "ava"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nodebysam/securestate.git"
+  },
+  "keywords": [
         "CSRF protection",
         "security",
         "web security",
@@ -30,32 +34,28 @@
         "security best practices",
         "Cross-Site Request Forgery prevention"
     ],
-    "author": "Sam Wilcox <sam@bulletinfusion.com",
+  "author": "Sam Wilcox <sam@bulletinfusion.com",
     "license": "GPL-3.0-only",
     "description": "Secure State is a robust CSRF (Cross-Site Request Forgery) protection library for Node.js, designed to enhance the security of web applications by ensuring that sensitive actions are protected with anti-CSRF tokens. This middleware offers flexible configuration options, including automatic token regeneration, customizable token length, cookie handling, and token expiration. It integrates seamlessly with Express.js, making it easy to safeguard routes that modify server-side state. Secure State helps prevent CSRF attacks by verifying that requests are coming from trusted sources, ensuring a more secure and resilient web application.",
-    "devDependencies": {
-        "jest": "^29.7.0",
-        "supertest": "^7.0.0"
-    },
-    "dependencies": {
-        "crypto": "^1.0.1",
-        "dotenv": "^16.4.7",
-        "express": "^4.21.2"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/nodebysam/securestate"
-    },
-    "bugs": {
-        "url": "https://github.com/nodebysam/securestate/issues/new"
-    },
-    "files": [
-        "utils/",
-        "README.md",
-        "LICENSE",
-        "index.js",
-        "config.js",
-        "middleware/",
-        ".env"
-    ]
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nodebysam/securestate/issues"
+  },
+  "homepage": "https://github.com/nodebysam/securestate#readme",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "express": "^4.21.2",
+    "supertest": "^7.0.0"
+  },
+  "devDependencies": {
+    "ava": "^6.2.0"
+  },
+  "files": [
+    "lib/",
+    "README.md",
+    "LICENSE",
+    "index.js",
+    "config.js",
+    "middleware/"
+  ]
 }
