@@ -8,7 +8,7 @@
  * Please see LICENSE file included with this library.
  */
 
-const config = require('./config');
+const { config, setConfig } = require('./config');
 const { secureStateMiddleware, verifyCsrf } = require('./middleware/csrf');
 const { generateToken, validateToken } = require('./lib/token');
 const { getCookie, setCookie } = require('./lib/cookies');
@@ -33,4 +33,5 @@ module.exports = {
 
     // Secure State user configurations object.
     config,
+    setConfig,
 };

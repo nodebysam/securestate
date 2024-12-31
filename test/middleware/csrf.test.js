@@ -9,9 +9,8 @@
  */
 
 const test = require('ava');
-const config = require('../../config');
+const { config, setConfig } = require('../../config');
 const { secureStateMiddleware, verifyCsrf } = require('../../middleware/csrf');
-const { generateToken, validateToken } = require('../../lib/token');
 const mockMatch = require('../mocks/mockmatch');
 const supertest = require('supertest');
 const express = require('express');
@@ -37,18 +36,20 @@ app.post('/sensitive-action', verifyCsrf, (req, res) => {
     res.send('Action performed successfully');
 });
 
-test.afterEach(async t => {
+test.beforeEach(async t => {
     _csrfToken = null;
 
     await supertest(app)
         .get('/')
-        .set('Cookie', `${config.cookieOptions.cookieName}=deleted; Max-Age=0; Path=${config.cookieOptions.path}; HttpOnly`)
+        .set('Cookie', `${config.cookieOptions.cookieName}=deleted; Max-Age=0; Path=${config.cookieOptions.path}; HttpOnly`);
 
-    config.checkOrigin = false;
-    config.regenerateToken = false;
-    config.tokenExpires = false;
-    config.tokenExpiration = 0;
-    config.debug = false;
+    setConfig({
+        checkOrigin: false,
+        regenerateToken: false,
+        tokenExpires: false,
+        tokenExpiration: 0,
+        debug: false,
+    });
 });
 
 test('should set CSRF token in cookies and add to request', async t => {    
@@ -67,8 +68,7 @@ test('should set CSRF token in cookies and add to request', async t => {
 });
 
 test('should regenerate CSRF token if regenerateToken is true', async t => {
-    config.regenerateToken = true;
-
+    setConfig({ regenerateToken: true });
     const res1 = await supertest(app).get('/');
     const res2 = await supertest(app).get('/');
 
@@ -94,6 +94,8 @@ test('should expire CSRF token after specified period', async t => {
 });
 
 test('should pass CSRF token validation for valid token', async t => {
+    
+
     const res = await supertest(app)
         .get('/')
         .expect(200);
@@ -101,8 +103,7 @@ test('should pass CSRF token validation for valid token', async t => {
     let token =  res.header['set-cookie'][0];
     const csrfTokenMatch = token.match(csrfCookieRegex);
     t.truthy(csrfTokenMatch, 'CSRF token should be present in the Set-Cookie header');
-
-    const csrfTokenFromCookie = csrfTokenMatch[1];
+    const csrfTokenFromCookie = decodeURIComponent(csrfTokenMatch[1]);
     const setCookieHeader = res.headers['set-cookie'][0];
     const csrfTokenMatchResult = mockMatch(setCookieHeader, csrfCookieRegex, csrfTokenFromCookie);
     t.truthy(csrfTokenMatchResult, 'CSRF token should be valid and matched');
@@ -115,8 +116,7 @@ test('should pass CSRF token validation for valid token', async t => {
 });
 
 test('should validate CSRF token with origin check enabled', async t => {
-    config.checkOrigin = true;
-
+    setConfig({ checkOrigin: true });
     const res = await supertest(app)
         .get('/')
         .expect(200);

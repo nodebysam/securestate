@@ -92,7 +92,17 @@ const config = {
 ```
 
 ## Example:
-You can modify the __config.js__ file to adjust the CSRF protection according to your needs, such as enabling token expiration or debugging mode.
+You can modify the configurations by using the setConfig() method.
+
+```node
+const { setConfig } = require('securestate');
+
+// Change the regenerateToken and checkOrigin configuration
+setConfig({
+    regenerateToken: true,
+    checkOrigin: true,
+});
+```
 
 # API Documentation
 ### __generateToken(req, res, length)__

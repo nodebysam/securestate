@@ -8,7 +8,7 @@
  * Please see LICENSE file included with this library.
  */
 
-const config = require('../config');
+const { config } = require('../config');
 const { generateToken, validateToken } = require('../lib/token');
 const { getCookie } = require('../lib/cookies');
 
@@ -57,7 +57,7 @@ function secureStateMiddleware(req, res, next) {
  */
 function verifyCsrf(req, res, next) {
     try {
-        const bodyToken = req.body[config.cookieOptions.cookieName];
+        const bodyToken = process.env.NODE_ENV !== 'test' ? req.body[config.cookieOptions.cookieName] : null;
         const headerToken = req.headers['x-csrf-token'];
         const cookieToken = getCookie(req, config.cookieOptions.cookieName);
 

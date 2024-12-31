@@ -52,4 +52,25 @@ const config = {
     },
 };
 
-module.exports = config;
+/**
+ * Update the library configurations dynamically.
+ * 
+ * @param {Object} newConfig - An object containing the updated configuration values.
+ */
+function setConfig(newConfig) {
+    for (const key in newConfig) {
+        if (config.hasOwnProperty(key)) {
+            if (typeof config[key] === 'object' && typeof newConfig[key] === 'object') {
+                Object.assign(config[key], newConfig[key]);
+            } else {
+                config[key] = newConfig[key];
+            }
+        }
+    }
+
+    if (config.debug && process.env.NODE_ENV !== 'test') {
+        console.log('[SECURESTATE DEBUG] Updated configuration:', config);
+    }
+}
+
+module.exports = { config, setConfig };

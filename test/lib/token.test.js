@@ -10,14 +10,16 @@
 
 const test = require('ava');
 const { generateToken, validateToken } = require('../../lib/token');
-const config = require('../../config');
+const { config, setConfig } = require('../../config');
 
 test.afterEach(t => {
-    config.checkOrigin = false;
-    config.debug = false;
-    config.regenerateToken = false;
-    config.tokenExpires = false;
-    config.tokenExpiration = 0;
+    setConfig({
+        checkOrigin: false,
+        regenerateToken: false,
+        tokenExpires: false,
+        tokenExpiration: 0,
+        debug: false,
+    });
 });
 
 test('generateToken should return a token string value', t => {
@@ -29,12 +31,30 @@ test('generateToken should return a token string value', t => {
 });
 
 test('generateToken should return a token in the format of baseToken:originHash with check origin set to true', t => {
-    config.checkOrigin = true;
-    const req = { ip: '192.168.1.1', headers: { 'user-agent': 'test-agent' } };
-    const res = { cookie: () => {} };
+    setConfig({ checkOrigin: true });
+    const reqRes = buildRequestResponse();
+    const req = reqRes.req;
+    const res = reqRes.res;
 
     const token = generateToken(req, res);
     const split = token.split(':');
 
     t.is(split.length, 2);
 });
+
+test('')
+
+/**
+ * Builds the HTTP request and response mock objects.
+ * 
+ * @returns {object} The object containing the response and request objects.
+ */
+function buildRequestResponse() {
+    const req = { ip: '192.168.1.1', headers: { 'user-agent': 'test-agent' } };
+    const res = { cookie: () => {}, cookies: [], headers: { 'set-cookie': '' } };
+
+    return {
+        req,
+        res,
+    }
+}
