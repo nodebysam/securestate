@@ -15,13 +15,16 @@ const config = require('../../config');
  * 
  * @param {string} string - The input string.
  * @param {string} regex - The regular expression.
- * @param {string} value - The value of the cookie set inside match.
+ * @param {string} expectedTokenValue - The value of the cookie set inside match.
  * @returns {boolean} True if match, false if not a match.
  */
-const mockMatch = (string, regex, value) => {
-    if (string === `Set-Cookie: ${config.cookieOptions.cookieName}=${value}; HttpOnly; SameSite=Strict` && regex.test(string)) {
-        return [`${config.cookieOptions.cookieName}=${value}; HttpOnly; SameSite=Strict`, value];
+const mockMatch = (string, regex, expectedTokenValue) => {
+    const match = regex.exec(string);
+
+    if (match && match[1] === expectedTokenValue) {
+        return match;
     }
+
     return null;
 };
 

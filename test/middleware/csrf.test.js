@@ -12,7 +12,6 @@ const test = require('ava');
 const config = require('../../config');
 const { secureStateMiddleware, verifyCsrf } = require('../../middleware/csrf');
 const { generateToken, validateToken } = require('../../lib/token');
-const mockRes = require('../mocks/mockres');
 const mockMatch = require('../mocks/mockmatch');
 const supertest = require('supertest');
 const express = require('express');
@@ -38,13 +37,12 @@ app.post('/sensitive-action', verifyCsrf, (req, res) => {
     res.send('Action performed successfully');
 });
 
-test.afterEach(t => {
+test.afterEach(async t => {
     _csrfToken = null;
 
-    supertest(app)
+    await supertest(app)
         .get('/')
         .set('Cookie', `${config.cookieOptions.cookieName}=deleted; Max-Age=0; Path=${config.cookieOptions.path}; HttpOnly`)
-        .end(() => {});
 
     config.checkOrigin = false;
     config.regenerateToken = false;
@@ -80,46 +78,126 @@ test('should regenerate CSRF token if regenerateToken is true', async t => {
     t.not(csrfToken1, csrfToken2, 'CSRF token should be different on each request when regenerateToken is true');
 });
 
-// test('should expire CSRF token after specified period', async t => {
-//     t.timeout(20000); // Need this timeout since we are going to pause for 11 seconds.
-//     config.tokenExpires = true;
-//     config.tokenExpiration = 10; // Nice quick 10 seconds for testing purposes.
-//     const res1 = await supertest(app).get('/');
-//     const csrfToken1 = res1.headers['set-cookie'][0].match(csrfCookieRegex)[1];
+test('should expire CSRF token after specified period', async t => {
+    t.timeout(20000); // Need this timeout since we are going to pause for 11 seconds.
+    config.tokenExpires = true;
+    config.tokenExpiration = 10; // Nice quick 10 seconds for testing purposes.
+    const res1 = await supertest(app).get('/');
+    const csrfToken1 = res1.headers['set-cookie'][0].match(csrfCookieRegex)[1];
 
-//     await new Promise(resolve => setTimeout(resolve, 11000));
+    await new Promise(resolve => setTimeout(resolve, 11000));
     
-//     const res2 = await supertest(app).get('/');
-//     const csrfToken2 = res2.headers['set-cookie'][0].match(csrfCookieRegex)[1];
+    const res2 = await supertest(app).get('/');
+    const csrfToken2 = res2.headers['set-cookie'][0].match(csrfCookieRegex)[1];
 
-//     t.not(csrfToken1, csrfToken2, 'CSRF token should expire after the set time');
-// });
+    t.not(csrfToken1, csrfToken2, 'CSRF token should expire after the set time');
+});
 
 test('should pass CSRF token validation for valid token', async t => {
-    // const req = {};
-    // const res = mockRes();
+    const res = await supertest(app)
+        .get('/')
+        .expect(200);
+
+    let token =  res.header['set-cookie'][0];
+    const csrfTokenMatch = token.match(csrfCookieRegex);
+    t.truthy(csrfTokenMatch, 'CSRF token should be present in the Set-Cookie header');
+
+    const csrfTokenFromCookie = csrfTokenMatch[1];
+    const setCookieHeader = res.headers['set-cookie'][0];
+    const csrfTokenMatchResult = mockMatch(setCookieHeader, csrfCookieRegex, csrfTokenFromCookie);
+    t.truthy(csrfTokenMatchResult, 'CSRF token should be valid and matched');
+
+    await supertest(app)
+        .post('/sensitive-action')
+        .set('Cookie', `${config.cookieOptions.cookieName}=${csrfTokenFromCookie}`)
+        .set('x-csrf-token', csrfTokenFromCookie)
+        .expect(200);
+});
+
+test('should validate CSRF token with origin check enabled', async t => {
+    config.checkOrigin = true;
 
     const res = await supertest(app)
         .get('/')
         .expect(200);
 
-    let token =  res.header['set-cookie'].toString();
-    token = token.match(csrfCookieRegex)[1];
-
-    const setCookieHeader = res.headers['set-cookie'];
-    setCookieHeader[0] = {};
-    t.truthy(setCookieHeader, 'Set-Cookie header should exist');
-    t.truthy(setCookieHeader[0], 'Set-Cookie header should contain a valid cookie');
-    setCookieHeader[0] = 
-
-    csrfTokenMatch = mockMatch(setCookieHeader[0], /_csrfToken=([^;]+)/, token);
+    let token =  res.header['set-cookie'][0];
+    const csrfTokenMatch = token.match(csrfCookieRegex);
     t.truthy(csrfTokenMatch, 'CSRF token should be present in the Set-Cookie header');
 
-    const csrfCookie = res.headers['set-cookie'][0].match(csrfCookieRegex)[1];
-    const csrfTokenFromCookie = csrfCookie.split('=')[1].split(';')[0];
+    const csrfTokenFromCookie = csrfTokenMatch[1];
+    const setCookieHeader = res.headers['set-cookie'][0];
+    const csrfTokenMatchResult = mockMatch(setCookieHeader, csrfCookieRegex, csrfTokenFromCookie);
+    t.truthy(csrfTokenMatchResult, 'CSRF token should be valid and matched');
 
     await supertest(app)
         .post('/sensitive-action')
         .set('Cookie', `${config.cookieOptions.cookieName}=${csrfTokenFromCookie}`)
+        .set('x-csrf-token', csrfTokenFromCookie)
         .expect(200);
+});
+
+test('should apply correct CSRF token cookie settings', async t => {
+    const res = await supertest(app).get('/');
+
+    t.regex(res.headers['set-cookie'][0], /SameSite=Strict/, 'SameSite cookie attribute should be Strict');
+    t.regex(res.headers['set-cookie'][0], /HttpOnly/, 'HttpOnly cookie attribute should be set');
+});
+
+test('should reject request if CSRF token is missing', async t => {
+    const res = await supertest(app)
+        .post('/sensitive-action')
+        .expect(403);
+
+    t.deepEqual(res.body, { error: 'CSRF token missing.' }, 'Request should be rejected if CSRF token is missing');
+});
+
+test('should reject request if CSRF token cookie format is invalid', async t => {
+    const res = await supertest(app)
+        .post('/sensitive-action')
+        .set('Cookie', `${config.cookieOptions.cookieName}=invalidcookieformat`)
+        .expect(403);
+
+    t.deepEqual(res.body, { error: 'CSRF token missing.' }, 'Request should be rejected if CSRF cookie format is invalid');
+});
+
+test('should reject request if the x-csrf-token header is missing', async t => {
+    const res = await supertest(app)
+        .get('/')
+        .expect(200);
+
+    let token =  res.header['set-cookie'][0];
+    const csrfTokenMatch = token.match(csrfCookieRegex);
+    t.truthy(csrfTokenMatch, 'CSRF token should be present in the Set-Cookie header');
+
+    const csrfTokenFromCookie = csrfTokenMatch[1];
+    const setCookieHeader = res.headers['set-cookie'][0];
+    const csrfTokenMatchResult = mockMatch(setCookieHeader, csrfCookieRegex, csrfTokenFromCookie);
+    t.truthy(csrfTokenMatchResult, 'CSRF token should be valid and matched');
+
+    await supertest(app)
+        .post('/sensitive-action')
+        .set('Cookie', `${config.cookieOptions.cookieName}=${csrfTokenFromCookie}`)
+        .expect(403);
+});
+
+test('should reject request if the x-csrf-token header contains an invalid token', async t => {
+    const res = await supertest(app)
+        .get('/')
+        .expect(200);
+
+    let token =  res.header['set-cookie'][0];
+    const csrfTokenMatch = token.match(csrfCookieRegex);
+    t.truthy(csrfTokenMatch, 'CSRF token should be present in the Set-Cookie header');
+
+    const csrfTokenFromCookie = csrfTokenMatch[1];
+    const setCookieHeader = res.headers['set-cookie'][0];
+    const csrfTokenMatchResult = mockMatch(setCookieHeader, csrfCookieRegex, csrfTokenFromCookie);
+    t.truthy(csrfTokenMatchResult, 'CSRF token should be valid and matched');
+
+    await supertest(app)
+        .post('/sensitive-action')
+        .set('Cookie', `${config.cookieOptions.cookieName}=${csrfTokenFromCookie}`)
+        .set('x-csrf-token', 'invalid-token')
+        .expect(403);
 });

@@ -10,7 +10,7 @@
 
 const config = require('../config');
 const { generateToken, validateToken } = require('../lib/token');
-const { getCookie, setCookie } = require('../lib/cookies');
+const { getCookie } = require('../lib/cookies');
 
 /**
  * Middleware to generate and set a CSRF token in the response cookies.
@@ -59,12 +59,12 @@ function verifyCsrf(req, res, next) {
     try {
         const headerToken = req.headers['x-csrf-token'];
         const cookieToken = getCookie(req, config.cookieOptions.cookieName);
-
+        
         if (!headerToken || !cookieToken) {
             if (config.debug && process.env.NODE_ENV !== 'test') {
                 console.warn(`[SECURESTATE DEBUG] CSRF token missing. Header: ${headerToken}, Cookie: ${cookieToken}`);
             }
-
+            
             return res.status(403).json({ error: 'CSRF token missing.' });
         }
 
