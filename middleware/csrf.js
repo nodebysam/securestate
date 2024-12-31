@@ -57,23 +57,32 @@ function secureStateMiddleware(req, res, next) {
  */
 function verifyCsrf(req, res, next) {
     try {
+        const bodyToken = req.body[config.cookieOptions.cookieName];
         const headerToken = req.headers['x-csrf-token'];
         const cookieToken = getCookie(req, config.cookieOptions.cookieName);
-        
-        if (!headerToken || !cookieToken) {
-            if (config.debug && process.env.NODE_ENV !== 'test') {
-                console.warn(`[SECURESTATE DEBUG] CSRF token missing. Header: ${headerToken}, Cookie: ${cookieToken}`);
+
+        if (bodyToken && cookieToken) {
+            if (!validateToken(bodyToken, cookieToken, req)) {
+                if (config.debug && process.env.NODE_ENV !== 'test') {
+                    console.warn(`[SECURESTATE DEBUG] CSRF token mismatch. Body: ${bodyToken}, Cookie: ${cookieToken}`);
+                }
+
+                return res.status(403).json({ error: 'CSRF token mismatch.'});
             }
-            
+        } else if (headerToken && cookieToken) {
+            if (!validateToken(headerToken, cookieToken, req)) {
+                if (config.debug && process.env.NODE_ENV !== 'test') {
+                    console.warn(`[SECURESTATE DEBUG] CSRF token mismatch. Header: ${headerToken}, Cookie: ${cookieToken}`);
+                }
+
+                return res.status(403).json({ error: 'CSRF token mismatch.' })
+            }
+        } else {
+            if (config.debug && process.env.NODE_ENV !== 'test') {
+                console.warn(`[SECURESTATE DEBUG] CSRF token missing.`);
+            }
+
             return res.status(403).json({ error: 'CSRF token missing.' });
-        }
-
-        if (!validateToken(headerToken, cookieToken, req)) {
-            if (config.debug && process.env.NODE_ENV !== 'test') {
-                console.warn(`[SECURESTATE DEBUG] CSRF token mismatch. Header" ${headerToken}, Cookie: ${cookieToken}`);
-            }
-
-            return res.status(403).json({ error: 'CSRF token mismatch.' });
         }
 
         next();
