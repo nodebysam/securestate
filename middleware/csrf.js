@@ -27,19 +27,23 @@ const { getCookie, setCookie } = require('../lib/cookies');
  * @param {Object} next - The next middleware to execute.
  */
 function secureStateMiddleware(req, res, next) {
-    let token = getCookie(req, config.cookieOptions.cookieName);
+    try {
+        let token = getCookie(req, config.cookieOptions.cookieName);
 
-    if (config.regenerateToken || !token) {
-        token = generateToken(req, res, config.tokenLength);
-        setCookie(res, config.cookieOptions.cookieName, token);
+        if (config.regenerateToken || !token) {
+            token = generateToken(req, res, config.tokenLength);
 
-        if (config.debug && process.env.NODE_ENV !== 'test') {
-            console.log(`[SECURESTATE DEBUG] CSRF token generated: ${token}`);
+            if (config.debug && process.env.NODE_ENV !== 'test') {
+                console.log(`[SECURESTATE DEBUG] CSRF token generated: ${token}`);
+            }
         }
-    }
 
-    req._csrfToken = token;
-    next();
+        req._csrfToken = token;
+        next();
+    } catch (err) {
+        console.error('Error in secureStateMiddleware:', err);
+        next(err);
+    }
 }
 
 /**
@@ -52,26 +56,31 @@ function secureStateMiddleware(req, res, next) {
  * @param {Object} next - The next middleware to execute.
  */
 function verifyCsrf(req, res, next) {
-    const headerToken = req.headers['x-csrf-token'];
-    const cookieToken = getCookie(req, config.cookieOptions.cookieName);
+    try {
+        const headerToken = req.headers['x-csrf-token'];
+        const cookieToken = getCookie(req, config.cookieOptions.cookieName);
 
-    if (!headerToken || !cookieToken) {
-        if (config.debug && process.env.NODE_ENV !== 'test') {
-            console.warn(`[SECURESTATE DEBUG] CSRF token missing. Header: ${headerToken}, Cookie: ${cookieToken}`);
+        if (!headerToken || !cookieToken) {
+            if (config.debug && process.env.NODE_ENV !== 'test') {
+                console.warn(`[SECURESTATE DEBUG] CSRF token missing. Header: ${headerToken}, Cookie: ${cookieToken}`);
+            }
+
+            return res.status(403).json({ error: 'CSRF token missing.' });
         }
 
-        return res.status(403).json({ error: 'CSRF token missing.' });
-    }
+        if (!validateToken(headerToken, cookieToken, req)) {
+            if (config.debug && process.env.NODE_ENV !== 'test') {
+                console.warn(`[SECURESTATE DEBUG] CSRF token mismatch. Header" ${headerToken}, Cookie: ${cookieToken}`);
+            }
 
-    if (!validateToken(headerToken, cookieToken, req)) {
-        if (config.debug && process.env.NODE_ENV !== 'test') {
-            console.warn(`[SECURESTATE DEBUG] CSRF token mismatch. Header" ${headerToken}, Cookie: ${cookieToken}`);
+            return res.status(403).json({ error: 'CSRF token mismatch.' });
         }
 
-        return res.status(403).json({ error: 'CSRF token mismatch.' });
+        next();
+    } catch (err) {
+        console.error('Error in verifyCsrf:', err);
+        next(err);
     }
-
-    next();
 }
 
 module.exports = { secureStateMiddleware, verifyCsrf };
