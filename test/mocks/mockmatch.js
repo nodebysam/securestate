@@ -8,8 +8,6 @@
  * Please see LICENSE file included with this library.
  */
 
-const config = require('../../config');
-
 /**
  * Mocks the match method for the HTTP response object.
  * 
@@ -22,10 +20,10 @@ const mockMatch = (string, regex, expectedTokenValue) => {
     const match = regex.exec(string);
 
     if (match && match[1] === expectedTokenValue) {
-        return match;
+        return true;
     }
 
-    return null;
+    return false;
 };
 
 module.exports = mockMatch;

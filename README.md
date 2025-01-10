@@ -22,7 +22,7 @@
 Install Secure State via npm:
 
 ```bash
-npm install secure-state
+npm install securestate
 ```
 
 # Usage
@@ -30,7 +30,7 @@ npm install secure-state
 1. __secureStateMiddleware:__ This middleware generates and sets a CSRF token if not already set in the cookies. It should be used in routes where CSRF protection is needed.
 
 ```node
-const { secureStateMiddleware } = require('secure-state');
+const { secureStateMiddleware } = require('securestate');
 
 // Use this middleware on routes that require CSRF protection
 app.use(secureStateMiddleware);
@@ -39,7 +39,7 @@ app.use(secureStateMiddleware);
 2. __verifyCsrf:__ This middleware verifies that the CSRF token in the request matches the token stored in the cookies. It should be applied to routes that modify server-side state (e.g., POST, PUT, DELETE).
 
 ```node
-const { verifyCsrf } = require('secure-state');
+const { verifyCsrf } = require('securestate');
 
 // Use this middleware to verify CSRF tokens before handling sensitive actions
 app.use('/sensitive-route', verifyCsrf, (req, res) => {
@@ -52,7 +52,7 @@ app.use('/sensitive-route', verifyCsrf, (req, res) => {
 * __Generating a token:__ Use __generateToken__ to manually generate a CSRF token.
 
 ```node
-const { generateToken } = require('secure-state');
+const { generateToken } = require('securestate');
 
 const token = generateToken(req, res);
 console.log(token);  // The CSRF token generated
@@ -61,7 +61,7 @@ console.log(token);  // The CSRF token generated
 * __Validating a Token:__ Use __validateToken__ to check if the incoming token is valid.
 
 ```node
-const { validateToken } = require('secure-state');
+const { validateToken } = require('securestate');
 
 const isValid = validateToken(incomingToken, storedToken);
 console.log(isValid);  // Returns true if valid, false if invalid

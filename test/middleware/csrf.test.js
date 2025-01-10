@@ -94,8 +94,6 @@ test('should expire CSRF token after specified period', async t => {
 });
 
 test('should pass CSRF token validation for valid token', async t => {
-    
-
     const res = await supertest(app)
         .get('/')
         .expect(200);
